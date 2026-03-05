@@ -1,0 +1,32 @@
+# AI Data Engineer Agent - Backend
+
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install system dependencies and Jupyter
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Jupyter and other data science packages
+RUN pip install jupyter jupyterlab pandas numpy matplotlib seaborn plotly
+
+# Copy requirements and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy notebooks and datasets
+COPY notebooks/ /app/notebooks/
+COPY datasets/ /app/datasets/
+
+# Create directories
+RUN mkdir -p uploads models
+
+# Expose Jupyter port
+EXPOSE 8888
+
+# Start Jupyter Lab
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--NotebookApp.token=''"]
