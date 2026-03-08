@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -6,6 +6,18 @@ import toast from 'react-hot-toast';
 const DatasetUpload = ({ setDatasetId, setCurrentStep }) => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const isMountedRef = useRef(true);
+  const uploadControllerRef = useRef(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (uploadControllerRef.current) {
+        uploadControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const onDrop = useCallback(async (acceptedFiles) => {
     const file = acceptedFiles[0];
@@ -22,28 +34,37 @@ const DatasetUpload = ({ setDatasetId, setCurrentStep }) => {
 
     setUploading(true);
     setUploadProgress(0);
+    uploadControllerRef.current = new AbortController();
 
     try {
       const response = await axios.post('/api/upload-dataset', formData, {
+        signal: uploadControllerRef.current.signal,
         headers: {
           'Content-Type': 'multipart/form-data',
         },
         onUploadProgress: (progressEvent) => {
+          if (!isMountedRef.current || !progressEvent.total) return;
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           setUploadProgress(percentCompleted);
         },
       });
 
-      if (response.data.file_id) {
+      if (isMountedRef.current && response.data.file_id) {
         setDatasetId(response.data.file_id);
         toast.success('Dataset uploaded successfully!');
         setCurrentStep(1); // Move to analysis step
       }
     } catch (error) {
+      if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+        return;
+      }
       toast.error('Upload failed: ' + error.message);
     } finally {
-      setUploading(false);
-      setUploadProgress(0);
+      uploadControllerRef.current = null;
+      if (isMountedRef.current) {
+        setUploading(false);
+        setUploadProgress(0);
+      }
     }
   }, [setDatasetId, setCurrentStep]);
 

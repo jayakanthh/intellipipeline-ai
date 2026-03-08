@@ -1,17 +1,11 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import pandas as pd
 import json
 import os
 import uuid
 from typing import Dict, Any, Optional
 from datetime import datetime
-
-from api.dataset_analyzer import DatasetAnalyzer
-from api.pipeline_generator import PipelineGenerator
-from api.model_builder import ModelBuilder
-from api.deployment_manager import DeploymentManager
 
 app = FastAPI(
     title="AI Data Engineer Agent",
@@ -34,32 +28,27 @@ os.makedirs(RESULTS_DIR, exist_ok=True)
 
 class DataEngineerAgent:
     def __init__(self):
+        from api.dataset_analyzer import DatasetAnalyzer
+        from api.pipeline_generator import PipelineGenerator
+        from api.model_builder import ModelBuilder
+        from api.deployment_manager import DeploymentManager
         self.analyzer = DatasetAnalyzer()
         self.pipeline_generator = PipelineGenerator()
         self.model_builder = ModelBuilder()
         self.deployment_manager = DeploymentManager()
         
     async def process_dataset(self, file_path: str, target_column: str, task_type: str) -> Dict[str, Any]:
-        """Main processing pipeline"""
         try:
-            # Step 1: Analyze dataset
             analysis_results = await self.analyzer.analyze_dataset(file_path)
-            
-            # Step 2: Generate pipeline
             pipeline_code = await self.pipeline_generator.generate_pipeline(
                 analysis_results, target_column, task_type
             )
-            
-            # Step 3: Train model
             model_results = await self.model_builder.train_model(
                 file_path, target_column, task_type, pipeline_code
             )
-            
-            # Step 4: Generate deployment
             deployment_info = await self.deployment_manager.create_deployment(
                 model_results['model'], analysis_results
             )
-            
             return {
                 "analysis": analysis_results,
                 "pipeline": pipeline_code,
@@ -70,22 +59,27 @@ class DataEngineerAgent:
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-agent = DataEngineerAgent()
+_agent = None
+
+def get_agent() -> DataEngineerAgent:
+    global _agent
+    if _agent is None:
+        try:
+            _agent = DataEngineerAgent()
+        except ImportError as e:
+            raise HTTPException(status_code=503, detail=f"Dependency not available: {str(e)}")
+    return _agent
 
 @app.post("/api/upload-dataset")
 async def upload_dataset(file: UploadFile = File(...)):
-    """Upload dataset file"""
     if not file.filename.endswith(('.csv', '.xlsx', '.json')):
         raise HTTPException(status_code=400, detail="Unsupported file format")
-    
     file_id = str(uuid.uuid4())
     file_path = os.path.join(UPLOAD_DIR, f"{file_id}_{file.filename}")
-    
     try:
         with open(file_path, "wb") as buffer:
             content = await file.read()
             buffer.write(content)
-        
         return JSONResponse({
             "file_id": file_id,
             "filename": file.filename,
@@ -97,35 +91,26 @@ async def upload_dataset(file: UploadFile = File(...)):
 
 @app.post("/api/analyze-dataset/{file_id}")
 async def analyze_dataset(file_id: str, background_tasks: BackgroundTasks, target_column: str = None, task_type: str = "classification"):
-    """Analyze dataset and generate insights"""
     file_path = None
     for filename in os.listdir(UPLOAD_DIR):
         if filename.startswith(f"{file_id}_"):
             file_path = os.path.join(UPLOAD_DIR, filename)
             break
-    
     if not file_path:
         raise HTTPException(status_code=404, detail="Dataset not found")
-    
-    # Process in background
     task_id = str(uuid.uuid4())
-    
     async def process_task():
         try:
-            results = await agent.process_dataset(file_path, target_column, task_type)
-            # Save results
+            results = await get_agent().process_dataset(file_path, target_column, task_type)
             result_path = os.path.join(RESULTS_DIR, f"{task_id}.json")
             with open(result_path, 'w') as f:
                 json.dump(results, f, indent=2)
         except Exception as e:
-            # Save error
             error_result = {"error": str(e), "timestamp": datetime.now().isoformat()}
             result_path = os.path.join(RESULTS_DIR, f"{task_id}.json")
             with open(result_path, 'w') as f:
                 json.dump(error_result, f, indent=2)
-    
     background_tasks.add_task(process_task)
-    
     return JSONResponse({
         "task_id": task_id,
         "message": "Dataset analysis started in background"
@@ -133,9 +118,7 @@ async def analyze_dataset(file_id: str, background_tasks: BackgroundTasks, targe
 
 @app.get("/api/task-status/{task_id}")
 async def get_task_status(task_id: str):
-    """Get status of background task"""
     result_path = os.path.join(RESULTS_DIR, f"{task_id}.json")
-    
     if os.path.exists(result_path):
         with open(result_path, 'r') as f:
             result = json.load(f)
@@ -151,7 +134,6 @@ async def get_task_status(task_id: str):
 
 @app.get("/api/datasets")
 async def list_datasets():
-    """List all uploaded datasets"""
     datasets = []
     for filename in os.listdir(UPLOAD_DIR):
         if filename.endswith(('.csv', '.xlsx', '.json')):
@@ -166,9 +148,8 @@ async def list_datasets():
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint"""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

@@ -1,6 +1,4 @@
 import React from 'react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const PipelineViewer = ({ analysisResults, pipelineResults, setPipelineResults, setCurrentStep }) => {
   
@@ -212,10 +210,8 @@ accuracy, model = pipeline.train_model(X_processed, cleaned_data['target'])`
           <p className="text-gray-600 mb-4">
             Complete Python code for your ML pipeline, ready to use:
           </p>
-          <div className="mockup-code">
-            <SyntaxHighlighter language="python" style={tomorrow}>
-              {generated_code}
-            </SyntaxHighlighter>
+          <div className="mockup-code bg-neutral text-neutral-content overflow-x-auto">
+            <pre className="p-4 text-sm whitespace-pre">{generated_code}</pre>
           </div>
         </div>
       </div>

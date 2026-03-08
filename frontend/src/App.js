@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useState } from 'react';
+import { BrowserRouter as Router } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
-import './App.css';
 
 // Components
 import Navbar from './components/Navbar';
@@ -38,23 +37,21 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <div className="App">
+        <div className="App min-h-screen bg-base-200">
           <Navbar />
           
           {/* Progress Steps */}
           <div className="container mx-auto px-4 py-8">
-            <div className="steps steps-vertical lg:steps-horizontal">
+            <ul className="steps steps-vertical lg:steps-horizontal w-full">
               {steps.map((step, index) => (
-                <div 
+                <li
                   key={step.id} 
-                  className={`step ${index <= currentStep ? 'step-primary' : ''} ${index === currentStep ? 'step-active' : ''}`}
+                  className={`step ${index <= currentStep ? 'step-primary' : ''}`}
                 >
-                  <div className="step-content">
-                    <div className="step-title">{step.title}</div>
-                  </div>
-                </div>
+                  {step.title}
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
 
           {/* Main Content */}

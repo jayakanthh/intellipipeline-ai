@@ -16,63 +16,6 @@ code {
     monospace;
 }
 
-/* Custom styles for the AI Data Engineer Agent */
-.progress-steps {
-  display: flex;
-  justify-content: space-between;
-  margin: 2rem 0;
-}
-
-.step {
-  flex: 1;
-  text-align: center;
-  position: relative;
-}
-
-.step::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  background: #e5e7eb;
-  z-index: 2;
-}
-
-.step-active::before {
-  background: #3b82f6;
-}
-
-.step-primary::before {
-  background: #10b981;
-}
-
-.step::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: #e5e7eb;
-  z-index: 1;
-}
-
-.step:last-child::after {
-  display: none;
-}
-
-.step-primary::after {
-  background: #10b981;
-}
-
-.step-content {
-  margin-top: 3rem;
-}
-
 /* File upload dropzone styles */
 .dropzone {
   border: 2px dashed #d1d5db;
